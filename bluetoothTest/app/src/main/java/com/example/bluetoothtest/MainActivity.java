@@ -66,19 +66,24 @@ public class MainActivity extends AppCompatActivity {
             switch (msg_type.what){
                 case MESSAGE_READ:
 
-                    byte[] readbuf=(byte[])msg_type.obj;
-                    String string_recieved=new String(readbuf);
-                    Log.d(TAG, "message is: " + string_recieved);
+                    //byte[] readbuf=(byte[])msg_type.obj;
+                    String recieved = (String)msg_type.obj;
+                    //String string_recieved=new String(readbuf);
+                    Log.d(TAG, "message is: " + recieved);
                     //do some task based on recieved string
                     Log.d(TAG, "Handler: MESSAGE_READ");
                     break;
                 case MESSAGE_WRITE:
-
+                    /*
                     if(msg_type.obj!=null){
-                        ConnectedThread connectedThread=new ConnectedThread((BluetoothSocket)msg_type.obj);
-                        connectedThread.write(bluetooth_message.getBytes());
+                        mConnectedThread=new ConnectedThread((BluetoothSocket)msg_type.obj);
+                        mConnectedThread.write(bluetooth_message.getBytes());
                         Log.d(TAG, "message sent");
 
+                    }
+                    */
+                    if(mConnectedThread!=null) {
+                        mConnectedThread.write(bluetooth_message.getBytes());
                     }
                     Log.d(TAG, "Handler: MESSAGE_WRITE");
                     break;
@@ -222,6 +227,9 @@ public class MainActivity extends AppCompatActivity {
                     // Do work to manage the connection (in a separate thread)
                     Log.d(TAG, "onReceive: STATE OFF");
                     mHandler.obtainMessage(CONNECTED).sendToTarget();
+                    connected(socket);
+                    mHandler.obtainMessage(MESSAGE_WRITE,socket).sendToTarget();
+                    socket=null;
                 }
             }
         }
@@ -262,7 +270,8 @@ public class MainActivity extends AppCompatActivity {
                     //connected(mmSocket);
                     Log.d(TAG, "Connect Thread: Connected Start");
                     // Do work to manage the connection (in a separate thread)
-                    bluetooth_message = "Initial message";
+                    bluetooth_message = "Initial message*and the second line*";
+                    connected(mmSocket);
                     mHandler.obtainMessage(MESSAGE_WRITE,mmSocket).sendToTarget();
 
                 }
@@ -317,18 +326,32 @@ public class MainActivity extends AppCompatActivity {
         }
 
         public void run() {
-            Log.d(TAG, "Connect Thread: Run");
-            byte[] buffer = new byte[2];  // buffer store for the stream
+            Log.d(TAG, "Connected Thread: Run");
+            byte[] buffer = new byte[1];  // buffer store for the stream
             int bytes; // bytes returned from read()
 
             // Keep listening to the InputStream until an exception occurs
+
+            String message="";
+
             while (true) {
                 Log.d(TAG, "Connected Thread: Looping");
                 try {
                     // Read from the InputStream
                     bytes = mmInStream.read(buffer);
+                    String oneChar= new String(buffer);
+                    Log.d(TAG, "Connected Thread: got character: "+oneChar);
+                    if(oneChar.contains("*")){
+                        Log.d(TAG, "Connected Thread: Sending full message");
+                        mHandler.obtainMessage(MESSAGE_READ, message).sendToTarget();
+                        message="";
+                    }
+                    else{
+                        message+=oneChar;
+                    }
                     // Send the obtained bytes to the UI activity
-                    mHandler.obtainMessage(MESSAGE_READ, bytes, -1, buffer).sendToTarget();
+                    //mHandler.obtainMessage(MESSAGE_READ, bytes, -1, buffer).sendToTarget();
+
                     Log.d(TAG, "Connected Thread: Sent Read");
                 } catch (IOException e) {
                     Log.d(TAG, "Connected Thread: Loop Escape");
@@ -342,7 +365,7 @@ public class MainActivity extends AppCompatActivity {
             Log.d(TAG, "Connect Thread: Write");
             try {
                 mmOutStream.write(bytes);
-            } catch (IOException e) { Log.d(TAG, "Connect Thread: Write Error"); }
+            } catch (IOException e) { Log.d(TAG, "Connected Thread: Write Error"); }
         }
 
         /* Call this from the main activity to shutdown the connection */
