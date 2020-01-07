@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 
@@ -40,7 +41,8 @@ public class MainActivity extends AppCompatActivity {
     Set<BluetoothDevice> set_pairedDevices;
     ArrayAdapter adapter_paired_devices;
     BluetoothAdapter bluetoothAdapter;
-    public static final UUID MY_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
+
+    public static UUID MY_UUID;
     public static final int MESSAGE_READ=0;
     public static final int MESSAGE_WRITE=1;
     public static final int CONNECTING=2;
@@ -68,7 +70,7 @@ public class MainActivity extends AppCompatActivity {
                     String string_recieved=new String(readbuf);
                     Log.d(TAG, "message is: " + string_recieved);
                     //do some task based on recieved string
-
+                    Log.d(TAG, "Handler: MESSAGE_READ");
                     break;
                 case MESSAGE_WRITE:
 
@@ -78,18 +80,22 @@ public class MainActivity extends AppCompatActivity {
                         Log.d(TAG, "message sent");
 
                     }
+                    Log.d(TAG, "Handler: MESSAGE_WRITE");
                     break;
 
                 case CONNECTED:
                     Toast.makeText(getApplicationContext(),"Connected",Toast.LENGTH_SHORT).show();
+                    Log.d(TAG, "Handler: CONNECTED");
                     break;
 
                 case CONNECTING:
                     Toast.makeText(getApplicationContext(),"Connecting...",Toast.LENGTH_SHORT).show();
+                    Log.d(TAG, "Handler: CONNECTING");
                     break;
 
                 case NO_SOCKET_FOUND:
                     Toast.makeText(getApplicationContext(),"No socket found",Toast.LENGTH_SHORT).show();
+                    Log.d(TAG, "Handler: SOCKET_NOT_FOUND");
                     break;
             }
         }
@@ -99,6 +105,14 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
+        String zeros = "000000";
+        Random rnd = new Random();
+        String s = Integer.toString(rnd.nextInt(0X1000000), 16);
+        s = zeros.substring(s.length()) + s;
+        MY_UUID = UUID.fromString( "12345601-0000-1000-8000-008051234567");
+        //MY_UUID = UUID.fromString( s + "01-0000-1000-8000-008051234567");
+        Log.d(TAG, "Handler: " + s + "01-0000-1000-8000-00805F9B34FB");
+        Log.d(TAG, "Handler: ON_CREATE");
         super.onCreate(savedInstanceState);
         setContentView(R.layout.multiplayer_bluetooth);
         initialize_layout();
@@ -110,6 +124,7 @@ public class MainActivity extends AppCompatActivity {
 
     public void start_accepting_connection()
     {
+        Log.d(TAG, "Handler: start_accepting_connection");
         //call this on button click as suited by you
 
         AcceptThread acceptThread = new AcceptThread();
@@ -118,6 +133,7 @@ public class MainActivity extends AppCompatActivity {
     }
     public void initialize_clicks()
     {
+        Log.d(TAG, "Handler: initialize_clicks");
         lv_paired_devices.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id)
@@ -135,6 +151,7 @@ public class MainActivity extends AppCompatActivity {
 
     public void initialize_layout()
     {
+        Log.d(TAG, "Handler: initialize_layout");
         lv_paired_devices = (ListView)findViewById(R.id.lv_paired_devices);
         adapter_paired_devices = new ArrayAdapter(getApplicationContext(),R.layout.support_simple_spinner_dropdown_item);
         lv_paired_devices.setAdapter(adapter_paired_devices);
@@ -142,6 +159,7 @@ public class MainActivity extends AppCompatActivity {
 
     public void initialize_bluetooth()
     {
+        Log.d(TAG, "Handler: initialize_bluetooth");
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         if (bluetoothAdapter == null) {
             // Device doesn't support Bluetooth
@@ -175,21 +193,26 @@ public class MainActivity extends AppCompatActivity {
         private final BluetoothServerSocket serverSocket;
 
         public AcceptThread() {
+            Log.d(TAG, "Accept Thread: OnCreate");
             BluetoothServerSocket tmp = null;
             try {
                 // MY_UUID is the app's UUID string, also used by the client code
                 tmp = bluetoothAdapter.listenUsingRfcommWithServiceRecord("NAME",MY_UUID);
-            } catch (IOException e) { }
+            } catch (IOException e) { Log.d(TAG, "Accept Thread: OnCreate Catch"); }
             serverSocket = tmp;
         }
 
         public void run() {
+            Log.d(TAG, "Accept Thread: Run");
             BluetoothSocket socket = null;
             // Keep listening until exception occurs or a socket is returned
             while (true) {
                 try {
+                    Log.d(TAG, "Accept Thread: Run Loop Try1");
                     socket = serverSocket.accept();
+                    Log.d(TAG, "Accept Thread: Run Loop Try2");
                 } catch (IOException e) {
+                    Log.d(TAG, "Accept Thread: Run Loop Break");
                     break;
                 }
 
@@ -199,15 +222,6 @@ public class MainActivity extends AppCompatActivity {
                     // Do work to manage the connection (in a separate thread)
                     Log.d(TAG, "onReceive: STATE OFF");
                     mHandler.obtainMessage(CONNECTED).sendToTarget();
-                    try {
-                        socket.connect();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                    if(socket != null) {
-                        Log.d(TAG, "Accept Thread: Connected Start");
-                        connected(socket);
-                    }
                 }
             }
         }
@@ -221,6 +235,7 @@ public class MainActivity extends AppCompatActivity {
         public ConnectThread(BluetoothDevice device) {
             // Use a temporary object that is later assigned to mmSocket,
             // because mmSocket is final
+            Log.d(TAG, "Connect Thread: OnCreate");
             BluetoothSocket tmp = null;
             mmDevice = device;
 
@@ -233,6 +248,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         public void run() {
+            Log.d(TAG, "Connect Thread: Run");
             // Cancel discovery because it will slow down the connection
             bluetoothAdapter.cancelDiscovery();
 
@@ -243,12 +259,11 @@ public class MainActivity extends AppCompatActivity {
 
                 mmSocket.connect();
                 if(mmSocket != null){
+                    //connected(mmSocket);
                     Log.d(TAG, "Connect Thread: Connected Start");
-                    connected(mmSocket);
-
                     // Do work to manage the connection (in a separate thread)
-                    //bluetooth_message = "Initial message";
-                    //mHandler.obtainMessage(MESSAGE_WRITE,mmSocket).sendToTarget();
+                    bluetooth_message = "Initial message";
+                    mHandler.obtainMessage(MESSAGE_WRITE,mmSocket).sendToTarget();
 
                 }
                 else{Log.d(TAG, "Connect Thread: Connected Socket Null");}
@@ -281,6 +296,7 @@ public class MainActivity extends AppCompatActivity {
         private final OutputStream mmOutStream;
 
         public ConnectedThread(BluetoothSocket socket) {
+            Log.d(TAG, "Connected Thread: Connected Start");
             mmSocket = socket;
             InputStream tmpIn = null;
             OutputStream tmpOut = null;
@@ -301,20 +317,21 @@ public class MainActivity extends AppCompatActivity {
         }
 
         public void run() {
+            Log.d(TAG, "Connect Thread: Run");
             byte[] buffer = new byte[2];  // buffer store for the stream
             int bytes; // bytes returned from read()
 
             // Keep listening to the InputStream until an exception occurs
             while (true) {
-                Log.d(TAG, "Connected Thread: Loop");
+                Log.d(TAG, "Connected Thread: Looping");
                 try {
                     // Read from the InputStream
                     bytes = mmInStream.read(buffer);
                     // Send the obtained bytes to the UI activity
                     mHandler.obtainMessage(MESSAGE_READ, bytes, -1, buffer).sendToTarget();
-                    Log.d(TAG, "Connected Thread: Run Message Sent");
+                    Log.d(TAG, "Connected Thread: Sent Read");
                 } catch (IOException e) {
-                    Log.d(TAG, "Connected Thread: Run Failure");
+                    Log.d(TAG, "Connected Thread: Loop Escape");
                     break;
                 }
             }
@@ -322,9 +339,10 @@ public class MainActivity extends AppCompatActivity {
 
         /* Call this from the main activity to send data to the remote device */
         public void write(byte[] bytes) {
+            Log.d(TAG, "Connect Thread: Write");
             try {
                 mmOutStream.write(bytes);
-            } catch (IOException e) { }
+            } catch (IOException e) { Log.d(TAG, "Connect Thread: Write Error"); }
         }
 
         /* Call this from the main activity to shutdown the connection */
@@ -336,7 +354,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void connected(BluetoothSocket mmSocket) {
-        Log.d(TAG, "connected: Starting.");
+        Log.d(TAG, "Connect Thread: NA");
 
         // Start the thread to manage the connection and perform transmissions
         mConnectedThread = new ConnectedThread(mmSocket);
