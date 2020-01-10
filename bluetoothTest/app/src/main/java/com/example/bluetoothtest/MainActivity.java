@@ -19,6 +19,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.ListView;
 import android.widget.Toast;
 
@@ -27,6 +28,9 @@ import com.example.bluetoothtest.R;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Random;
 import java.util.Set;
@@ -69,6 +73,7 @@ public class MainActivity extends AppCompatActivity {
                     //byte[] readbuf=(byte[])msg_type.obj;
                     String recieved = (String)msg_type.obj;
                     //String string_recieved=new String(readbuf);
+                    Toast.makeText(getApplicationContext(),recieved,Toast.LENGTH_SHORT).show();
                     Log.d(TAG, "message is: " + recieved);
                     //do some task based on recieved string
                     Log.d(TAG, "Handler: MESSAGE_READ");
@@ -116,14 +121,46 @@ public class MainActivity extends AppCompatActivity {
         s = zeros.substring(s.length()) + s;
         MY_UUID = UUID.fromString( "12345601-0000-1000-8000-008051234567");
         //MY_UUID = UUID.fromString( s + "01-0000-1000-8000-008051234567");
-        Log.d(TAG, "Handler: " + s + "01-0000-1000-8000-00805F9B34FB");
+        //Log.d(TAG, "Handler: " + s + "01-0000-1000-8000-00805F9B34FB");
         Log.d(TAG, "Handler: ON_CREATE");
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.multiplayer_bluetooth);
+        setContentView(R.layout.connection_layout);
         initialize_layout();
         initialize_bluetooth();
         start_accepting_connection();
         initialize_clicks();
+
+
+        Button button1 = (Button) findViewById(R.id.button1);
+        Button button2 = (Button) findViewById(R.id.button2);
+
+        button1.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if(mConnectedThread == null){
+                    Toast.makeText(getApplicationContext(),"No connection",Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                else{
+                    bluetooth_message = "button 1 pressed*";
+                    mConnectedThread.write(bluetooth_message.getBytes());
+                }
+            }
+        });
+
+        button2.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if(mConnectedThread == null){
+                    Toast.makeText(getApplicationContext(),"No connection",Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                else{
+                    bluetooth_message = "very different message than the other button*";
+                    mConnectedThread.write(bluetooth_message.getBytes());
+                }
+            }
+        });
 
     }
 
@@ -201,6 +238,7 @@ public class MainActivity extends AppCompatActivity {
             Log.d(TAG, "Accept Thread: OnCreate");
             BluetoothServerSocket tmp = null;
             try {
+
                 // MY_UUID is the app's UUID string, also used by the client code
                 tmp = bluetoothAdapter.listenUsingRfcommWithServiceRecord("NAME",MY_UUID);
             } catch (IOException e) { Log.d(TAG, "Accept Thread: OnCreate Catch"); }
@@ -246,12 +284,30 @@ public class MainActivity extends AppCompatActivity {
             Log.d(TAG, "Connect Thread: OnCreate");
             BluetoothSocket tmp = null;
             mmDevice = device;
+            Method m = null;
+            try
+            {m = device.getClass().getMethod("createInsecureRfcommSocket", new Class[]{int.class});}
+            catch (NoSuchMethodException ex){Log.d(TAG, "Connect Thread: NoMethod");}
 
             // Get a BluetoothSocket to connect with the given BluetoothDevice
+            /*
             try {
+                int bt_port_to_connect = 5;
+
                 // MY_UUID is the app's UUID string, also used by the server code
                 tmp = device.createRfcommSocketToServiceRecord(MY_UUID);
+                //tmp = (BluetoothSocket) m.invoke(device, bt_port_to_connect);
             } catch (IOException e) { }
+             */
+            try {
+                int bt_port_to_connect = 5;
+
+                // MY_UUID is the app's UUID string, also used by the server code
+                //tmp = device.createRfcommSocketToServiceRecord(MY_UUID);
+                tmp = (BluetoothSocket) m.invoke(device, bt_port_to_connect);
+            }
+            catch (IllegalAccessException e1) {Log.d(TAG, "Connect Thread: IllegalAccessException");}
+            catch (InvocationTargetException e2) {Log.d(TAG, "Connect Thread: TargetException");}
             mmSocket = tmp;
         }
 
